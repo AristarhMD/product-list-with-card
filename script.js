@@ -1,15 +1,35 @@
 import desserts from "./data.json" with { type: "json" };
+
 const articleContainer = document.querySelector(".article-container");
 const cartCounter = document.querySelector(".cart-counter");
 const cartContainer = document.querySelector(".cart-container");
-let incrementQty;
-let decrementQty;
+const completeOrderDiv = document.querySelector(".complet-order");
+const completCartItems = document.querySelector(".complete-cart-items");
+const completeCartPrice = document.querySelector(".complet-cart-price");
+const newOrderBtn = document.querySelector(".new-order");
 
-const initialData = [];
 let cart = [];
 
-desserts.forEach((dessert) => {
-  let articleEl = `
+initialization();
+
+function initialization() {
+  // Generate main desserts cards on the page
+  let mainDessertsCards = initialDessertsCards();
+  // Insert cards to the page
+  articleContainer.innerHTML = mainDessertsCards;
+
+  // Add eventlistener for each add to card btn from main desserts card.
+  addToCardListeners();
+
+  // Add eventlisteners to increment/decrement qty of the dessert
+  decrementQty();
+  incrementQty();
+}
+
+function initialDessertsCards() {
+  const initialData = [];
+  desserts.forEach((dessert) => {
+    let articleEl = `
     <article class="flex flex-col gap-4">
               <div>
                 <picture>
@@ -52,7 +72,7 @@ desserts.forEach((dessert) => {
 
                   <button
                     class="cart-button flex items-center justify-center mx-auto gap-2 p-3 border border-rose-400 rounded-full cursor-pointer text-rose-900 relative bg-white w-40 hover:border-red hover:text-red"
-                    data-id="${dessert.name}"
+                    data-dessert="${dessert.name}"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -87,48 +107,163 @@ desserts.forEach((dessert) => {
               </div>
             </article>`;
 
-  initialData.push(articleEl);
-});
+    initialData.push(articleEl);
+  });
+  return initialData.join("");
+}
 
-function initialization() {
-  articleContainer.innerHTML = initialData.join("");
+function addToCardListeners() {
   const addToCartBtns = document.querySelectorAll(".cart-button");
   addToCartBtns.forEach((addToCartBtn) => {
     addToCartBtn.addEventListener("click", function () {
-      addToCart(this);
+      addToCart(this.dataset.dessert);
+      changeAddToCardBtn(this);
+      renderCart();
     });
   });
-  incrementQty = document.querySelectorAll(".qty-increase");
-  decrementQty = document.querySelectorAll(".qty-decrease");
 }
 
-initialization();
+function findItemInTheCar(dessertName) {
+  const dessertInTheCard = cart.find((dessert) => dessert.name === dessertName);
+  return dessertInTheCard;
+}
 
-function addToCart(name) {
-  let btnId = name.dataset.id;
-  desserts.forEach((desert) => {
-    let qty;
-    if (desert.name === btnId) {
-      const index = cart.findIndex((item) => item.name === btnId);
-      if (index !== -1) {
-        cart[index].quantity = cart[index].quantity + 1;
-        qty = cart[index].quantity + 1;
-      } else {
-        cart.push({ ...desert, quantity: 1 });
-        qty = 1;
-      }
-      changeBtn(name, qty);
-    }
+function addToCart(dessertName) {
+  let dessertInTheCard = findItemInTheCar(dessertName);
+
+  if (!dessertInTheCard) {
+    let addedDessert = desserts.find((dessert) => dessert.name === dessertName);
+    cart.push({ ...addedDessert, quantity: 1 });
+  } else if (dessertInTheCard) {
+    dessertInTheCard.quantity++;
+  } else {
     return;
-  });
+  }
+}
 
-  renderCart();
+function getRequestedEls(el) {
+  let parrentArticle = el.closest("article");
+  let articleImg = parrentArticle.querySelector("img");
+  let incrementDecrementDiv = parrentArticle.querySelector(".cart-quantity");
+  let cartQty = parrentArticle.querySelector(".cart-quantity-info");
+  let dessertName =
+    parrentArticle.querySelector(".cart-button").dataset.dessert;
+  let addToCartBtn = parrentArticle.querySelector(".cart-button");
+
+  return [
+    articleImg,
+    incrementDecrementDiv,
+    cartQty,
+    dessertName,
+    addToCartBtn,
+  ];
+}
+
+function changeAddToCardBtn(button) {
+  let dessertName = button.dataset.dessert;
+  let qty = findItemInTheCar(dessertName).quantity;
+
+  let [articleImg, qtyCartDiv = incrementDecrementDiv, qtyCartText = cartQty] =
+    getRequestedEls(button);
+
+  if (!articleImg.classList.contains("ring-2")) {
+    articleImg.classList.add("ring-2");
+    articleImg.classList.add("ring-red");
+    qtyCartDiv.classList.remove("hidden");
+    button.classList.add("hidden");
+    qtyCartText.textContent = qty;
+  } else {
+    return;
+  }
+}
+
+function decrementQty() {
+  // Selecting all decrement btns
+  let decrementQty = document.querySelectorAll(".qty-decrease");
+
+  // Looping over decrement btns and add logic of it
+  decrementQty.forEach((decrement) => {
+    decrement.addEventListener("click", function () {
+      let [
+        articleImg,
+        incrementDecrementDiv,
+        cartQty,
+        dessertName,
+        addToCartBtn,
+      ] = getRequestedEls(decrement);
+
+      let cartItem = findItemInTheCar(dessertName);
+      cartItem.quantity--;
+
+      if (cartItem.quantity <= 0) {
+        addToCartBtn.classList.remove("hidden");
+        incrementDecrementDiv.classList.add("hidden");
+        articleImg.classList.remove("ring-2");
+
+        cart = cart.filter((item) => item.quantity > 0);
+        cartQty.textContent = "0";
+      } else {
+        cartQty.textContent = cartItem.quantity;
+      }
+      renderCart();
+    });
+  });
+}
+
+function incrementQty() {
+  // Selecting all increment btns
+  let incrementQty = document.querySelectorAll(".qty-increase");
+
+  // Looping over increment btns and add logic of it
+  incrementQty.forEach((increment) => {
+    increment.addEventListener("click", function () {
+      let [
+        _articleImg,
+        _incrementDecrementDiv,
+        cartQty,
+        dessertName,
+        _addToCartBtn,
+      ] = getRequestedEls(increment);
+
+      let cartItem = findItemInTheCar(dessertName);
+
+      cartItem.quantity++;
+      cartQty.textContent = cartItem.quantity;
+      renderCart();
+    });
+  });
 }
 
 function renderCart() {
+  // General
   let cartHtml = [];
+
+  let totalPrice = cart
+    .reduce((prev, curr) => (prev = curr.price * curr.quantity + prev), 0)
+    .toFixed(2);
+
+  let footerCart = `
+    <hr class="bg-rose-100">
+    
+    <p class="w-full preset-4 text-rose-900 flex justify-between items-center">Order Total
+    <span class="preset-2">$${totalPrice}</span></p>
+
+    <div class="w-full bg-rose-50 rounded-2xl p-4 flex items-center justify-center gap-2">
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" fill="none" viewBox="0 0 21 20"><path fill="#1EA575" d="M8 18.75H6.125V17.5H8V9.729L5.803 8.41l.644-1.072 2.196 1.318a1.256 1.256 0 0 1 .607 1.072V17.5A1.25 1.25 0 0 1 8 18.75Z"/><path fill="#1EA575" d="M14.25 18.75h-1.875a1.25 1.25 0 0 1-1.25-1.25v-6.875h3.75a2.498 2.498 0 0 0 2.488-2.747 2.594 2.594 0 0 0-2.622-2.253h-.99l-.11-.487C13.283 3.56 11.769 2.5 9.875 2.5a3.762 3.762 0 0 0-3.4 2.179l-.194.417-.54-.072A1.876 1.876 0 0 0 5.5 5a2.5 2.5 0 1 0 0 5v1.25a3.75 3.75 0 0 1 0-7.5h.05a5.019 5.019 0 0 1 4.325-2.5c2.3 0 4.182 1.236 4.845 3.125h.02a3.852 3.852 0 0 1 3.868 3.384 3.75 3.75 0 0 1-3.733 4.116h-2.5V17.5h1.875v1.25Z"/></svg>
+    <p class="preset-4">This is a <span class="preset-4-bold">carbon-neutral</span> delivery</p>
+
+    </div>
+
+    <button class="confirm-order w-full overflow-hidden py-4 bg-red rounded-full cursor-pointer relative before:absolute before:content-[''] before:inset-0 before:bg-black/25 before:opacity-0 hover:before:opacity-100">
+    <span class="relative z-10 text-white preset-3">Confirm Order</span>
+    </button>
+    `;
+
   cartCounter.textContent = `${cart.length}`;
   cartContainer.classList.remove("py-4");
+
+  // Initial state of the cart
   const initialState = ` <svg
               xmlns="http://www.w3.org/2000/svg"
               width="128"
@@ -188,10 +323,11 @@ function renderCart() {
               Your added items will appear here
             </p>`;
 
+  // Formating the cart display
   if (cart.length === 0) {
     cartContainer.innerHTML = initialState;
   } else {
-    cart.forEach((cartItem) => {
+    cartHtml = cart.map((cartItem, idx, arr) => {
       let cartItemHtml = `
     <article  class="w-full first:py-0 first:pb-4 py-4 last:border-none border-b border-rose-100 flex flex justify-between items-center" ">
         <div class="flex flex-col gap-2">
@@ -204,92 +340,19 @@ function renderCart() {
         </div>
         <button class="delet-from-cart group hover:border-rose-900 p-1 border border-rose-400 rounded-full cursor-pointer" data-id="${cartItem.name}"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 10 10"><path class="group-hover:fill-rose-900" fill="#CAAFA7" d="M8.375 9.375 5 6 1.625 9.375l-1-1L4 5 .625 1.625l1-1L5 4 8.375.625l1 1L6 5l3.375 3.375-1 1Z"/></svg></button>
       </article>`;
-      cartHtml.push(cartItemHtml);
+
+      if (idx === arr.length - 1) {
+        cartItemHtml += footerCart;
+      }
+
+      return cartItemHtml;
     });
-
-    let totalPrice = cart
-      .reduce((prev, curr) => (prev = curr.price * curr.quantity + prev), 0)
-      .toFixed(2);
-
-    let footerCart = `
-    <hr class="bg-rose-100">
-    
-    <p class="w-full preset-4 text-rose-900 flex justify-between items-center">Order Total
-    <span class="preset-2">$${totalPrice}</span></p>
-
-    <div class="w-full bg-rose-50 rounded-2xl p-4 flex items-center justify-center gap-2">
-
-    <svg xmlns="http://www.w3.org/2000/svg" width="21" height="20" fill="none" viewBox="0 0 21 20"><path fill="#1EA575" d="M8 18.75H6.125V17.5H8V9.729L5.803 8.41l.644-1.072 2.196 1.318a1.256 1.256 0 0 1 .607 1.072V17.5A1.25 1.25 0 0 1 8 18.75Z"/><path fill="#1EA575" d="M14.25 18.75h-1.875a1.25 1.25 0 0 1-1.25-1.25v-6.875h3.75a2.498 2.498 0 0 0 2.488-2.747 2.594 2.594 0 0 0-2.622-2.253h-.99l-.11-.487C13.283 3.56 11.769 2.5 9.875 2.5a3.762 3.762 0 0 0-3.4 2.179l-.194.417-.54-.072A1.876 1.876 0 0 0 5.5 5a2.5 2.5 0 1 0 0 5v1.25a3.75 3.75 0 0 1 0-7.5h.05a5.019 5.019 0 0 1 4.325-2.5c2.3 0 4.182 1.236 4.845 3.125h.02a3.852 3.852 0 0 1 3.868 3.384 3.75 3.75 0 0 1-3.733 4.116h-2.5V17.5h1.875v1.25Z"/></svg>
-    <p>This is a <span class="preset-4-bold">carbon-neutral</span> delivery</p>
-
-    </div>
-
-    <button class="w-full overflow-hidden py-4 bg-red rounded-full cursor-pointer relative before:absolute before:content-[''] before:inset-0 before:bg-black/25 before:opacity-0 hover:before:opacity-100">
-    <span class="relative z-10 text-white preset-3">Confirm Order</span>
-    </button>
-    `;
-    cartHtml.push(footerCart);
 
     cartContainer.innerHTML = cartHtml.join("");
     eventDelete();
+    confirmOrder();
   }
 }
-
-function changeBtn(button, qty) {
-  let parrentArticle = button.closest("article");
-  let articleImg = parrentArticle.querySelector("img");
-  let qtyCartDiv = parrentArticle.querySelector(".cart-quantity");
-  let qtyCartText = parrentArticle.querySelector(".cart-quantity-info");
-
-  if (!articleImg.classList.contains("ring-2")) {
-    articleImg.classList.add("ring-2");
-    articleImg.classList.add("ring-red");
-    qtyCartDiv.classList.remove("hidden");
-    button.classList.add("hidden");
-    qtyCartText.textContent = qty;
-  }
-}
-
-decrementQty.forEach((decrement) => {
-  decrement.addEventListener("click", function () {
-    let parrentArticle = decrement.closest("article");
-    let parentContainer = this.closest(".btn-container");
-    let id = parentContainer.querySelector("[data-id]").dataset.id;
-    let indexInCart = cart.findIndex((item) => item.name === id);
-
-    cart[indexInCart].quantity--;
-
-    // Trebuie regindit sa fie functie si codul din functia changeBtn
-    if (cart[indexInCart].quantity <= 0) {
-      parentContainer.querySelector(".cart-button").classList.remove("hidden");
-      decrement.parentElement.classList.add("hidden");
-      parrentArticle.querySelector("img").classList.remove("ring-2");
-
-      let updatedCart = cart.filter((item) => item.quantity > 0);
-      cart = [...updatedCart];
-      parentContainer.querySelector(".cart-quantity-info").textContent = "0";
-      renderCart();
-      return;
-    }
-    parentContainer.querySelector(".cart-quantity-info").textContent =
-      cart[indexInCart].quantity;
-
-    renderCart();
-  });
-});
-
-incrementQty.forEach((increment) => {
-  increment.addEventListener("click", function () {
-    let parentContainer = this.closest(".btn-container");
-    let id = parentContainer.querySelector("[data-id]").dataset.id;
-    let indexInCart = cart.findIndex((item) => item.name === id);
-
-    cart[indexInCart].quantity++;
-    parentContainer.querySelector(".cart-quantity-info").textContent =
-      cart[indexInCart].quantity;
-    renderCart();
-  });
-});
 
 function eventDelete() {
   const deleteFromCartBtns = document.querySelectorAll(".delet-from-cart");
@@ -323,3 +386,48 @@ function eventDelete() {
     });
   });
 }
+
+function confirmOrder() {
+  const confirmOrderBtn = document.querySelector(".confirm-order");
+
+  confirmOrderBtn.addEventListener("click", () => {
+    // Calculating total price
+    const totalBill = cart
+      .reduce((prev, curr) => (prev += curr.price * curr.quantity), 0)
+      .toFixed(2);
+
+    // Creating card for each item in cart
+    const completOrderCards = cart.map((item, indx) => {
+      let card = `
+    <article class="w-full flex items-center justify-start">
+      <div class="w-12 h-12 flex rounded overflow-hidden mr-4 basis-12 shrink-0">
+        <img src=${item.image.thumbnail}>
+      </div>
+
+      <div class="min-w-30 flex flex-col gap-2 items-center justify-start mr-2 ">
+        <p class="w-full preset-4-bold text-rose-900 truncate">${item.name}</p>
+        <p class="preset-4-bold text-red flex gap-2 mr-auto">${item.quantity}x<span class="preset-4 text-rose-500">@ $${item.price.toFixed(2)}</span></p>
+      </div>
+
+      <p class="ml-auto preset-3 text-rose-900 basis-content">$${(item.price * item.quantity).toFixed(2)}</p>
+    
+    </article>`;
+
+      if (cart.length > 1 && indx < cart.length - 1) {
+        card += `<hr class="border-rose-100" />`;
+      }
+      return card;
+    });
+
+    completeOrderDiv.classList.remove("hidden");
+    completCartItems.innerHTML = completOrderCards.join("");
+    completeCartPrice.textContent = `$${totalBill}`;
+  });
+}
+
+newOrderBtn.addEventListener("click", () => {
+  initialization();
+  completeOrderDiv.classList.add("hidden");
+  cart = [];
+  renderCart();
+});
